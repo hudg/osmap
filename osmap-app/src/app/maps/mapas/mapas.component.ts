@@ -5,12 +5,12 @@ import View from 'ol/View';
 import { OSM } from 'ol/source';
 import TileLayer from 'ol/layer/Tile';
 import { useGeographic } from 'ol/proj';
-import { Geometry, Point } from 'ol/geom';
+import { Point } from 'ol/geom';
 import VectorLayer from 'ol/layer/Vector';
 import VectorSource from 'ol/source/Vector';
-import { Feature, Overlay } from 'ol';
-import { Coordinate } from 'ol/coordinate';
-import { FeatureLike } from 'ol/Feature';
+import { Feature } from 'ol';
+
+import { ActivatedRoute, Router } from '@angular/router';
 
 @Component({
   selector: 'app-mapas',
@@ -20,13 +20,13 @@ import { FeatureLike } from 'ol/Feature';
   styleUrl: './mapas.component.css',
 })
 export class MapasComponent implements OnInit {
+  public deviceId!: string;
+  public latitude!: string;
+  public longitude!: string;
+
   public map!: Map;
-  public innerHTML!: string;
 
-  public _element: any;
-  public _popup: any;
-
-  public place = [-46.681917, -23.491316];
+  public placeInit = [0, 0];
   public place1 = [-46.6827299, -23.4915739, 10];
   public place2 = [-46.683073, -23.49089, 20];
   public place3 = [-46.6846311, -23.4910142, 30];
@@ -35,9 +35,32 @@ export class MapasComponent implements OnInit {
   public point2 = new Point(this.place2);
   public point3 = new Point(this.place3);
 
+  constructor(private route: ActivatedRoute, private router: Router) {}
+
   ngOnInit(): void {
     useGeographic();
 
+    this.route.params.subscribe(
+      (params) => (
+        (this.deviceId = params['deviceId']),
+        (this.latitude = params['latitude']),
+        (this.longitude = params['longitude'])
+      )
+    );
+
+    /*  alert(this.route.snapshot.queryParams['deviceId']);
+    alert(this.route.snapshot.queryParams['latitude']);
+    alert(this.route.snapshot.queryParams['longitude']); */
+    this.placeInit = [
+      this.route.snapshot.queryParams['latitude'],
+      this.route.snapshot.queryParams['longitude'],
+    ];
+
+    this.initMap();
+    this.coordinate();
+  }
+
+  public initMap() {
     this.map = new Map({
       layers: [
         new TileLayer({
@@ -59,41 +82,32 @@ export class MapasComponent implements OnInit {
       ],
       target: 'map',
       view: new View({
-        center: this.place,
-        zoom: 18,
+        center: this.placeInit,
+        zoom: 5,
         minZoom: 2,
         maxZoom: 19,
       }),
     });
-
-    this.popup();
-    this.info();
-    this.popover();
   }
 
-  public popup() {
-    this._element = document.getElementById('popup') as HTMLElement;
+  public coordinate() {
+    this.map.on('click', (event) => {
+      const feature = this.map.getFeaturesAtPixel(event.pixel)[0];
+      /* const view = this.map.getView();
+      const center = view.getCenter() as Coordinate | undefined; */
 
-    this._popup = new Overlay({
-      element: this._element,
-      stopEvent: false,
-    });
-    this.map.addOverlay(this._popup);
-  }
+      let coords = feature.getGeometry() as Point;
+      var coordinate = coords.getCoordinates();
 
-  public info() {
-    var _info = document.getElementById('info') as HTMLElement;
-    this.map.on('moveend', () => {
-      const view = this.map.getView();
-      const coordinate = view.getCenter();
+      var _info = document.getElementById('info') as HTMLElement;
       _info.innerHTML = `
       <table>
         <tbody>
           <tr><th>lon</th><td>${
-            coordinate == null ? '' : coordinate[0].toFixed(2)
+            coordinate == null ? '' : coordinate[0]
           }</td></tr>
           <tr><th>lat</th><td>${
-            coordinate == null ? '' : coordinate[1].toFixed(2)
+            coordinate == null ? '' : coordinate[1]
           }</td></tr>
           <tr><th>Car</th><td>${
             coordinate == null ? '' : coordinate[2]
@@ -101,48 +115,5 @@ export class MapasComponent implements OnInit {
         </tbody>
       </table>`;
     });
-  }
-
-  public popover() {
-
-    this.map.on('click',  (event) => {
-      const feature = this.map.getFeaturesAtPixel(event.pixel)[0];
-      const view = this.map.getView();
-      const center = view.getCenter() as Coordinate | undefined;
-
-
-      let coords = feature.getGeometry() as Point;
-
-      var flatCoordinates = coords.getCoordinates();
-
-
-      alert(flatCoordinates[2]);
-    });
-  }
-
-  public pointermove() {
-    this.map.on('pointermove', (event) => {
-      const type = this.map.hasFeatureAtPixel(event.pixel)
-        ? 'pointer'
-        : 'inherit';
-      this.map.getViewport().style.cursor = type;
-    });
-  }
-
-  public formatCoordinate(coordinate: Coordinate | undefined) {
-    return `
-      <table>
-        <tbody>
-          <tr><th>lon</th><td>${
-            coordinate == null ? '' : coordinate[0].toFixed(2)
-          }</td></tr>
-          <tr><th>lat</th><td>${
-            coordinate == null ? '' : coordinate[1].toFixed(2)
-          }</td></tr>
-          <tr><th>Car</th><td>${
-            coordinate == null ? '' : coordinate[2]
-          }</td></tr>
-        </tbody>
-      </table>`;
   }
 }
